@@ -1,0 +1,4 @@
+PyQt6>=6.6.0
+PyQt6-SVG>=6.6.0
+python-libtorrent>=2.0.9
+pyqtgraph>=0.13.3
