@@ -47,22 +47,32 @@ ntorrent/
 
 ## Running from source
 
-Python 3.10–3.12 on Windows.
+**Python 3.10–3.13 on Windows — not 3.14.** `libtorrent`'s PyPI wheels stop at
+cp313; there is no 3.14 build. If `py --list` shows multiple Pythons installed,
+pin the venv to one that's 3.13 or lower:
 
 ```bat
-python -m venv venv
+py -3.12 -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 python main.py
 ```
 
-If `pip install python-libtorrent` can't find a wheel for your exact Python
-version, use conda instead:
+Everything — PyInstaller, PyQt6, libtorrent — must come from this **same venv**.
+Installing packages into one Python and running PyInstaller from another is the
+single most common cause of "it built but the exe is broken."
+
+The pip package is named **`libtorrent`** (not `python-libtorrent` — that name
+doesn't exist on PyPI). If `pip install libtorrent` still can't find a wheel for
+your Python version, use conda instead:
 
 ```bat
 conda install -c conda-forge libtorrent
-pip install PyQt6 PyQt6-SVG pyqtgraph
+pip install PyQt6 pyqtgraph
 ```
+
+QtSvg (used for the dev-credit icons) ships inside the main `PyQt6` wheel already
+— there is no separate `PyQt6-SVG` package, so don't try to install one.
 
 Config and session state live in `%USERPROFILE%\.ntorrent\` — `config.json` for
 settings, `resume\*.fastresume` for the data that reloads your active torrents on
@@ -86,9 +96,14 @@ entry, no uninstaller, no file association. To get a real installer, wrap it wit
 **Inno Setup** (free, the standard tool for this):
 
 1. Build the exe first (previous step) — Inno Setup packages `dist\NTorrent.exe`.
-2. Install [Inno Setup](https://jrsoftware.org/isinfo.php).
-3. Open `installer\ntorrent.iss` (included in this repo) in the Inno Setup
-   Compiler, or run it from the command line:
+2. Install [Inno Setup](https://jrsoftware.org/isinfo.php) itself first — the
+   `ISCC.exe` command doesn't exist until you do. The default install path is
+   `C:\Program Files (x86)\Inno Setup 6\ISCC.exe`; if "the system cannot find the
+   path specified" shows up, Inno Setup isn't installed yet, or installed
+   somewhere else — check that path, or just open the `.iss` file directly in
+   the Inno Setup Compiler GUI (double-click it after installing) and hit
+   **Build → Compile** instead of using the command line at all.
+3. Run from the project root (not from inside `installer\`):
    ```bat
    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ntorrent.iss
    ```
