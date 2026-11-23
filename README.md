@@ -82,10 +82,16 @@ next launch. Nothing is written next to the app itself.
 
 ```bat
 pip install pyinstaller
-pyinstaller --noconsole --onefile --name NTorrent --collect-all libtorrent main.py
+pyinstaller --noconsole --onefile --name NTorrent ^
+    --icon assets\n.ico ^
+    --add-data "assets\n.png;assets" ^
+    --collect-all libtorrent main.py
 ```
 
-`--collect-all libtorrent` is required — libtorrent ships a native `.pyd` and
+`--icon assets\n.ico` sets the exe's own icon (taskbar, Explorer, Alt-Tab).
+`--add-data "assets\n.png;assets"` bundles the PNG the app loads at runtime for
+the window icon — `main.py`'s `resource_path()` helper finds it whether you're
+running from source or from the frozen exe. `--collect-all libtorrent` is required — libtorrent ships a native `.pyd` and
 supporting DLLs PyInstaller's import scan won't catch on its own. Output lands at
 `dist\NTorrent.exe`, fully self-contained.
 

@@ -1,7 +1,8 @@
 ; NTorrent Windows installer script (Inno Setup 6)
 ;
 ; Build order:
-;   1. pyinstaller --noconsole --onefile --name NTorrent --collect-all libtorrent main.py
+;   1. pyinstaller --noconsole --onefile --name NTorrent --icon assets\n.ico ^
+;          --add-data "assets\n.png;assets" --collect-all libtorrent main.py
 ;      (run from the project root -- produces dist\NTorrent.exe)
 ;   2. Compile this script:
 ;      "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ntorrent.iss
@@ -30,6 +31,7 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesInstallIn64BitMode=x64compatible
+SetupIconFile=..\assets\n.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
