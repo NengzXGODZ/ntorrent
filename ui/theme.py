@@ -20,6 +20,19 @@ ACCENT_YELLOW = "#F5D547"
 DOWNLOAD_COLOR = ACCENT_CYAN
 UPLOAD_COLOR = ACCENT_ORANGE
 
+TELEGRAM_BLUE = "#26A5E4"
+
+# Per-status accent used to paint the colored badge in the Status column.
+STATUS_COLORS = {
+    "Downloading": ACCENT_CYAN,
+    "Seeding": ACCENT_EMERALD,
+    "Finished": ACCENT_EMERALD,
+    "Paused": TEXT_SECONDARY,
+    "Checking": ACCENT_YELLOW,
+    "Checking resume data": ACCENT_YELLOW,
+    "Fetching metadata": ACCENT_ORANGE,
+}
+
 STYLESHEET = f"""
 * {{
     font-family: "Segoe UI", "Inter", sans-serif;

@@ -12,19 +12,24 @@ import sys
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QToolBar,
     QTableView, QListWidget, QListWidgetItem, QLabel, QFileDialog,
-    QMessageBox, QMenu, QAbstractItemView, QHeaderView, QStatusBar, QToolButton
+    QMessageBox, QMenu, QAbstractItemView, QHeaderView, QStatusBar, QToolButton,
+    QLineEdit, QSizePolicy
 )
 from PyQt6.QtGui import QAction, QClipboard, QDesktopServices
 from PyQt6.QtCore import Qt, QTimer, QPoint, QUrl, QSize
 
 from engine import TorrentEngine, load_config, save_config, TorrentSnapshot
 from models import TorrentTableModel, COL_SAVE_PATH
-from ui.delegates import ProgressBarDelegate
+from ui.delegates import TorrentRowDelegate
 from ui.add_dialogs import AddTorrentFileDialog, AddMagnetDialog
 from ui.settings_dialog import SettingsDialog
 from ui.speed_graph import SpeedGraph
-from ui.icons import svg_icon, GITHUB_SVG, TELEGRAM_SVG
-from ui.theme import TEXT_SECONDARY
+from ui.proxy_model import TorrentFilterProxy
+from ui.icons import (
+    svg_icon, GITHUB_SVG, TELEGRAM_SVG, ADD_FILE_SVG, MAGNET_SVG, PAUSE_SVG,
+    RESUME_SVG, REMOVE_SVG, FOLDER_SVG, SETTINGS_SVG, SEARCH_SVG,
+)
+from ui.theme import TEXT_SECONDARY, TEXT_PRIMARY, TELEGRAM_BLUE
 from models import human_rate, human_size
 
 DEV_GITHUB_URL = "https://github.com/NengzXGODZ"
@@ -45,6 +50,8 @@ class MainWindow(QMainWindow):
         self.config = load_config()
         self.engine = TorrentEngine(self.config)
         self.table_model = TorrentTableModel(self)
+        self.proxy_model = TorrentFilterProxy(self)
+        self.proxy_model.setSourceModel(self.table_model)
         self._active_filter = "All"
 
         self._build_ui()
@@ -86,7 +93,8 @@ class MainWindow(QMainWindow):
         self.filter_list.setObjectName("filterList")
         self.filter_list.setFrameShape(QListWidget.Shape.NoFrame)
         for name in FILTERS:
-            QListWidgetItem(name, self.filter_list)
+            item = QListWidgetItem(f"{name}  ·  0", self.filter_list)
+            item.setData(Qt.ItemDataRole.UserRole, name)
         self.filter_list.setCurrentRow(0)
         side_layout.addWidget(self.filter_list, 1)
 
@@ -97,8 +105,8 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(0)
 
         self.table = QTableView()
-        self.table.setModel(self.table_model)
-        self.table.setItemDelegate(ProgressBarDelegate(self.table))
+        self.table.setModel(self.proxy_model)
+        self.table.setItemDelegate(TorrentRowDelegate(self.table))
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setAlternatingRowColors(True)
@@ -110,6 +118,8 @@ class MainWindow(QMainWindow):
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setSortingEnabled(True)
+        self.table.horizontalHeader().setSortIndicatorShown(True)
 
         self.graph = SpeedGraph()
 
@@ -140,17 +150,17 @@ class MainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.dht_label)
         self.status_bar.addPermanentWidget(self.session_totals_label)
 
-        # --- dev credit links (GitHub / Telegram) ---
+        # --- dev credit links (real GitHub octocat / Telegram paper-plane marks) ---
         self.github_btn = QToolButton()
-        self.github_btn.setIcon(svg_icon(GITHUB_SVG, TEXT_SECONDARY))
-        self.github_btn.setIconSize(QSize(16, 16))
+        self.github_btn.setIcon(svg_icon(GITHUB_SVG, TEXT_PRIMARY))
+        self.github_btn.setIconSize(QSize(17, 17))
         self.github_btn.setToolTip("Dev on GitHub: NengzXGODZ")
         self.github_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.github_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(DEV_GITHUB_URL)))
 
         self.telegram_btn = QToolButton()
-        self.telegram_btn.setIcon(svg_icon(TELEGRAM_SVG, TEXT_SECONDARY))
-        self.telegram_btn.setIconSize(QSize(16, 16))
+        self.telegram_btn.setIcon(svg_icon(TELEGRAM_SVG, TELEGRAM_BLUE))
+        self.telegram_btn.setIconSize(QSize(17, 17))
         self.telegram_btn.setToolTip("Dev on Telegram: @nengzx_fernandez")
         self.telegram_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.telegram_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(DEV_TELEGRAM_URL)))
@@ -162,16 +172,18 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar("Main")
         toolbar.setObjectName("toolbar")
         toolbar.setMovable(False)
-        toolbar.setIconSize(toolbar.iconSize())
+        toolbar.setIconSize(QSize(18, 18))
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.addToolBar(toolbar)
 
-        self.act_add_file = QAction("Add Torrent File", self)
-        self.act_add_magnet = QAction("Paste Magnet Link", self)
-        self.act_pause = QAction("Pause", self)
-        self.act_resume = QAction("Resume", self)
-        self.act_remove = QAction("Remove", self)
-        self.act_open_folder = QAction("Open Folder", self)
-        self.act_settings = QAction("Settings", self)
+        icon_color = TEXT_PRIMARY
+        self.act_add_file = QAction(svg_icon(ADD_FILE_SVG, icon_color), "Add Torrent File", self)
+        self.act_add_magnet = QAction(svg_icon(MAGNET_SVG, icon_color), "Paste Magnet Link", self)
+        self.act_pause = QAction(svg_icon(PAUSE_SVG, icon_color), "Pause", self)
+        self.act_resume = QAction(svg_icon(RESUME_SVG, icon_color), "Resume", self)
+        self.act_remove = QAction(svg_icon(REMOVE_SVG, icon_color), "Remove", self)
+        self.act_open_folder = QAction(svg_icon(FOLDER_SVG, icon_color), "Open Folder", self)
+        self.act_settings = QAction(svg_icon(SETTINGS_SVG, icon_color), "Settings", self)
 
         for act in (self.act_add_file, self.act_add_magnet):
             toolbar.addAction(act)
@@ -181,6 +193,19 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         toolbar.addAction(self.act_settings)
 
+        # Spacer pushes the search box to the far right of the toolbar.
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("Search torrents...")
+        self.search_box.setFixedWidth(220)
+        self.search_box.setClearButtonEnabled(True)
+        search_icon_action = QAction(svg_icon(SEARCH_SVG, TEXT_SECONDARY), "", self.search_box)
+        self.search_box.addAction(search_icon_action, QLineEdit.ActionPosition.LeadingPosition)
+        toolbar.addWidget(self.search_box)
+
     def _wire_up(self) -> None:
         self.act_add_file.triggered.connect(self.on_add_torrent_file)
         self.act_add_magnet.triggered.connect(self.on_add_magnet)
@@ -189,7 +214,8 @@ class MainWindow(QMainWindow):
         self.act_remove.triggered.connect(self.on_remove_selected)
         self.act_open_folder.triggered.connect(self.on_open_folder_selected)
         self.act_settings.triggered.connect(self.on_open_settings)
-        self.filter_list.currentTextChanged.connect(self.on_filter_changed)
+        self.filter_list.currentRowChanged.connect(self.on_filter_changed)
+        self.search_box.textChanged.connect(self.proxy_model.set_search_text)
 
     # --------------------------------------------------------------- add
     def on_add_torrent_file(self) -> None:
@@ -242,37 +268,56 @@ class MainWindow(QMainWindow):
 
     # ----------------------------------------------------------- actions
     def _selected_hashes(self) -> list[str]:
+        # Indexes from the view are proxy indexes (sort/filter applied);
+        # QSortFilterProxyModel.data() already maps these to the source
+        # model automatically, so no manual mapToSource() is needed here.
         hashes = []
         for index in self.table.selectionModel().selectedRows():
-            row: TorrentSnapshot = self.table_model.data(index, Qt.ItemDataRole.UserRole)
+            row: TorrentSnapshot = self.proxy_model.data(index, Qt.ItemDataRole.UserRole)
             if row:
                 hashes.append(row.info_hash)
         return hashes
 
     def on_pause_selected(self) -> None:
-        for h in self._selected_hashes():
+        hashes = self._selected_hashes()
+        if not hashes:
+            return
+        for h in hashes:
             self.engine.pause(h)
         self._poll()
 
     def on_resume_selected(self) -> None:
-        for h in self._selected_hashes():
+        hashes = self._selected_hashes()
+        if not hashes:
+            return
+        for h in hashes:
             self.engine.resume(h)
         self._poll()
 
     def on_remove_selected(self) -> None:
         hashes = self._selected_hashes()
         if not hashes:
+            QMessageBox.information(self, "No Torrent Selected", "Select a torrent first, then try again.")
             return
-        resp = QMessageBox.question(
-            self, "Remove Torrent",
-            f"Remove {len(hashes)} torrent(s) from the list?\n\n"
-            "Click 'Yes' to also delete the downloaded files from disk.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
-        )
-        if resp == QMessageBox.StandardButton.Cancel:
+
+        # Three explicit buttons instead of Yes/No/Cancel: that mapping was
+        # ambiguous (Cancel aborted the whole remove, which looked like
+        # "remove failed" when someone clicked it just meaning "don't touch
+        # my files"). Now every button's label says exactly what it does.
+        box = QMessageBox(self)
+        box.setWindowTitle("Remove Torrent")
+        box.setText(f"Remove {len(hashes)} torrent(s) from the list?")
+        remove_only_btn = box.addButton("Remove (Keep Files)", QMessageBox.ButtonRole.YesRole)
+        remove_delete_btn = box.addButton("Remove and Delete Files", QMessageBox.ButtonRole.DestructiveRole)
+        cancel_btn = box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(remove_only_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is cancel_btn or clicked is None:
             return
-        delete_files = resp == QMessageBox.StandardButton.Yes
+        delete_files = clicked is remove_delete_btn
+
         for h in hashes:
             self.engine.remove(h, delete_files=delete_files)
         self._poll()
@@ -280,6 +325,7 @@ class MainWindow(QMainWindow):
     def on_open_folder_selected(self) -> None:
         hashes = self._selected_hashes()
         if not hashes:
+            QMessageBox.information(self, "No Torrent Selected", "Select a torrent first, then try again.")
             return
         path = self.engine.get_save_path(hashes[0])
         if path and os.path.isdir(path):
@@ -298,13 +344,21 @@ class MainWindow(QMainWindow):
             self.engine.apply_settings(new_config)
             save_config(new_config)
 
-    def on_filter_changed(self, text: str) -> None:
-        self._active_filter = text or "All"
+    def on_filter_changed(self, row: int) -> None:
+        item = self.filter_list.item(row)
+        self._active_filter = item.data(Qt.ItemDataRole.UserRole) if item else "All"
         self._poll()
 
     def _show_context_menu(self, pos: QPoint) -> None:
-        if not self.table.indexAt(pos).isValid():
+        index = self.table.indexAt(pos)
+        if not index.isValid():
             return
+        # Right-clicking a row does NOT select it by default in QTableView,
+        # so without this, every action below would act on whatever was
+        # selected before (often nothing) instead of the row under the cursor.
+        if not self.table.selectionModel().isRowSelected(index.row(), index.parent()):
+            self.table.selectRow(index.row())
+
         menu = QMenu(self)
         menu.addAction("Open Output Folder", self.on_open_folder_selected)
         menu.addSeparator()
@@ -328,10 +382,25 @@ class MainWindow(QMainWindow):
             return row.is_paused
         return True
 
+    def _filter_counts(self, torrents: list[TorrentSnapshot]) -> dict:
+        return {
+            "All": len(torrents),
+            "Downloading": sum(1 for r in torrents if r.status == "Downloading"),
+            "Seeding": sum(1 for r in torrents if r.status == "Seeding"),
+            "Completed": sum(1 for r in torrents if r.is_finished),
+            "Paused": sum(1 for r in torrents if r.is_paused),
+        }
+
     def _poll(self) -> None:
         snapshot = self.engine.poll()
         visible_rows = [r for r in snapshot.torrents if self._matches_filter(r)]
         self.table_model.set_rows(visible_rows)
+
+        counts = self._filter_counts(snapshot.torrents)
+        for i in range(self.filter_list.count()):
+            item = self.filter_list.item(i)
+            name = item.data(Qt.ItemDataRole.UserRole)
+            item.setText(f"{name}  ·  {counts.get(name, 0)}")
 
         self.graph.push_sample(snapshot.download_rate, snapshot.upload_rate)
 
